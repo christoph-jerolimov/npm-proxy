@@ -1,0 +1,181 @@
+name: Proxy
+
+# Runs the same installs as install.yml, but with the registry pointed at a
+# local stand-in (.github/scripts/fake-registry.py) that logs every request
+# and serves nothing. Each job proves three things:
+#   1. the install fails when the configured registry serves nothing,
+#   2. the package manager really sent its requests to that registry,
+#   3. the same install still works against the default registry.
+# The control install runs last so the manager's cache is still empty while
+# the fake registry is in use.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  REGISTRY: http://127.0.0.1:4873
+  REGISTRY_LOG: /tmp/fake-registry.log
+
+jobs:
+  npm:
+    name: npm
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/npm
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Start fake registry
+        run: |
+          python3 "$GITHUB_WORKSPACE/.github/scripts/fake-registry.py" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
+          sleep 1
+          curl -s -o /dev/null -w 'fake registry answered with HTTP %{http_code}\n' "$REGISTRY/ping"
+      - name: Install against fake registry (must fail)
+        run: |
+          if npm ci --registry="$REGISTRY" --fetch-retries=0; then
+            echo "::error::npm ci succeeded although the registry serves nothing"
+            exit 1
+          fi
+          echo "npm ci failed as expected"
+      - name: Verify requests reached the fake registry
+        run: |
+          cat "$REGISTRY_LOG"
+          grep -q lodash "$REGISTRY_LOG"
+      - name: Control install against default registry
+        run: npm ci
+
+  yarn:
+    name: Yarn
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/yarn
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: corepack enable
+      - name: Start fake registry
+        run: |
+          python3 "$GITHUB_WORKSPACE/.github/scripts/fake-registry.py" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
+          sleep 1
+          curl -s -o /dev/null -w 'fake registry answered with HTTP %{http_code}\n' "$REGISTRY/ping"
+      - name: Install against fake registry (must fail)
+        env:
+          YARN_NPM_REGISTRY_SERVER: ${{ env.REGISTRY }}
+          YARN_UNSAFE_HTTP_WHITELIST: 127.0.0.1
+          YARN_HTTP_RETRY: 0
+        run: |
+          if yarn install --immutable; then
+            echo "::error::yarn install succeeded although the registry serves nothing"
+            exit 1
+          fi
+          echo "yarn install failed as expected"
+      - name: Verify requests reached the fake registry
+        run: |
+          cat "$REGISTRY_LOG"
+          grep -q lodash "$REGISTRY_LOG"
+      - name: Control install against default registry
+        run: yarn install --immutable
+
+  pnpm:
+    name: pnpm
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/pnpm
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Start fake registry
+        run: |
+          python3 "$GITHUB_WORKSPACE/.github/scripts/fake-registry.py" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
+          sleep 1
+          curl -s -o /dev/null -w 'fake registry answered with HTTP %{http_code}\n' "$REGISTRY/ping"
+      - name: Install against fake registry (must fail)
+        run: |
+          if pnpm install --frozen-lockfile --registry="$REGISTRY" --fetch-retries=0; then
+            echo "::error::pnpm install succeeded although the registry serves nothing"
+            exit 1
+          fi
+          echo "pnpm install failed as expected"
+      - name: Verify requests reached the fake registry
+        run: |
+          cat "$REGISTRY_LOG"
+          grep -q lodash "$REGISTRY_LOG"
+      - name: Control install against default registry
+        run: pnpm install --frozen-lockfile
+
+  bun:
+    name: Bun
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/bun
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Start fake registry
+        run: |
+          python3 "$GITHUB_WORKSPACE/.github/scripts/fake-registry.py" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
+          sleep 1
+          curl -s -o /dev/null -w 'fake registry answered with HTTP %{http_code}\n' "$REGISTRY/ping"
+      - name: Install against fake registry (must fail)
+        run: |
+          if bun install --frozen-lockfile --registry="$REGISTRY"; then
+            echo "::error::bun install succeeded although the registry serves nothing"
+            exit 1
+          fi
+          echo "bun install failed as expected"
+      - name: Verify requests reached the fake registry
+        run: |
+          cat "$REGISTRY_LOG"
+          grep -q lodash "$REGISTRY_LOG"
+      - name: Control install against default registry
+        run: bun install --frozen-lockfile
+
+  deno:
+    name: Deno
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/deno
+    steps:
+      - uses: actions/checkout@v7
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Start fake registry
+        run: |
+          python3 "$GITHUB_WORKSPACE/.github/scripts/fake-registry.py" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
+          sleep 1
+          curl -s -o /dev/null -w 'fake registry answered with HTTP %{http_code}\n' "$REGISTRY/ping"
+      - name: Install against fake registry (must fail)
+        env:
+          NPM_CONFIG_REGISTRY: ${{ env.REGISTRY }}
+        run: |
+          if deno install --frozen; then
+            echo "::error::deno install succeeded although the registry serves nothing"
+            exit 1
+          fi
+          echo "deno install failed as expected"
+      - name: Verify requests reached the fake registry
+        run: |
+          cat "$REGISTRY_LOG"
+          grep -q lodash "$REGISTRY_LOG"
+      - name: Control install against default registry
+        run: deno install --frozen
