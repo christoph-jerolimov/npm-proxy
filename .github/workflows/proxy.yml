@@ -1,7 +1,7 @@
 name: Proxy
 
 # Runs the same installs as install.yml, but with the registry pointed at a
-# local stand-in (.github/scripts/fake-registry.py) that logs every request
+# local stand-in (.github/scripts/fake-registry.js) that logs every request
 # and serves nothing. Each job proves three things:
 #   1. the install fails when the configured registry serves nothing,
 #   2. the package manager really sent its requests to that registry,
@@ -33,7 +33,7 @@ jobs:
           node-version: 22
       - name: Start fake registry
         run: |
-          python3 "$GITHUB_WORKSPACE/.github/scripts/fake-registry.py" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
+          node "$GITHUB_WORKSPACE/.github/scripts/fake-registry.js" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
           sleep 1
           curl -s -o /dev/null -w 'fake registry answered with HTTP %{http_code}\n' "$REGISTRY/ping"
       - name: Install against fake registry (must fail)
@@ -64,7 +64,7 @@ jobs:
       - run: corepack enable
       - name: Start fake registry
         run: |
-          python3 "$GITHUB_WORKSPACE/.github/scripts/fake-registry.py" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
+          node "$GITHUB_WORKSPACE/.github/scripts/fake-registry.js" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
           sleep 1
           curl -s -o /dev/null -w 'fake registry answered with HTTP %{http_code}\n' "$REGISTRY/ping"
       - name: Install against fake registry (must fail)
@@ -101,7 +101,7 @@ jobs:
           node-version: 22
       - name: Start fake registry
         run: |
-          python3 "$GITHUB_WORKSPACE/.github/scripts/fake-registry.py" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
+          node "$GITHUB_WORKSPACE/.github/scripts/fake-registry.js" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
           sleep 1
           curl -s -o /dev/null -w 'fake registry answered with HTTP %{http_code}\n' "$REGISTRY/ping"
       - name: Install against fake registry (must fail)
@@ -131,7 +131,7 @@ jobs:
           bun-version: latest
       - name: Start fake registry
         run: |
-          python3 "$GITHUB_WORKSPACE/.github/scripts/fake-registry.py" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
+          node "$GITHUB_WORKSPACE/.github/scripts/fake-registry.js" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
           sleep 1
           curl -s -o /dev/null -w 'fake registry answered with HTTP %{http_code}\n' "$REGISTRY/ping"
       - name: Install against fake registry (must fail)
@@ -161,7 +161,7 @@ jobs:
           deno-version: v2.x
       - name: Start fake registry
         run: |
-          python3 "$GITHUB_WORKSPACE/.github/scripts/fake-registry.py" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
+          node "$GITHUB_WORKSPACE/.github/scripts/fake-registry.js" 4873 "$REGISTRY_LOG" > /tmp/fake-registry.out 2>&1 &
           sleep 1
           curl -s -o /dev/null -w 'fake registry answered with HTTP %{http_code}\n' "$REGISTRY/ping"
       - name: Install against fake registry (must fail)
