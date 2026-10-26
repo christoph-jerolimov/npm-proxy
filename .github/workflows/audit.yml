@@ -4,9 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    # Every Monday at 06:00 UTC, so new advisories show up without a push.
-    - cron: "0 6 * * 1"
   workflow_dispatch:
 
 # The audit jobs only log findings. Every audit step uses continue-on-error
