@@ -8,8 +8,8 @@
 //
 // Usage: node fake-registry.js [port] [logfile]
 
-const http = require("node:http");
-const fs = require("node:fs");
+import fs from "node:fs";
+import http from "node:http";
 
 const port = Number(process.argv[2] ?? 4873);
 const logFile = process.argv[3] ?? "fake-registry.log";
