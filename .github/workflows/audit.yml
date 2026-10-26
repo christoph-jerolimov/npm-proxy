@@ -1,0 +1,110 @@
+name: Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Every Monday at 06:00 UTC, so new advisories show up without a push.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+# The audit jobs only log findings. Every audit step uses continue-on-error
+# so a known vulnerability in a pinned dependency does not turn the run red.
+
+jobs:
+  npm:
+    name: npm audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/npm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: npm audit
+        continue-on-error: true
+        run: npm audit
+      - name: npm audit (json)
+        continue-on-error: true
+        run: npm audit --json
+
+  yarn:
+    name: yarn npm audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/yarn
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: yarn install --immutable
+      - name: yarn npm audit
+        continue-on-error: true
+        run: yarn npm audit --all --recursive
+      - name: yarn npm audit (json)
+        continue-on-error: true
+        run: yarn npm audit --all --recursive --json
+
+  pnpm:
+    name: pnpm audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/pnpm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - name: pnpm audit
+        continue-on-error: true
+        run: pnpm audit
+      - name: pnpm audit (json)
+        continue-on-error: true
+        run: pnpm audit --json
+
+  bun:
+    name: bun audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/bun
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: bun audit
+        continue-on-error: true
+        run: bun audit
+      - name: bun audit (json)
+        continue-on-error: true
+        run: bun audit --json
+
+  deno:
+    name: deno audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/deno
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno install --frozen
+      - name: deno audit
+        continue-on-error: true
+        run: deno audit
