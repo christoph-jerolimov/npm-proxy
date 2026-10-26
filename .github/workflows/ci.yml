@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+      - run: node dist/cli.js --help
+
+  end-to-end:
+    name: End-to-end with npm
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: A clean package installs through the proxy
+        run: |
+          mkdir -p "$RUNNER_TEMP/clean" && cd "$RUNNER_TEMP/clean"
+          echo '{"name":"clean","private":true,"dependencies":{"lodash":"4.18.1"}}' > package.json
+          node "$GITHUB_WORKSPACE/dist/cli.js" install --no-audit --no-fund
+          node -e "console.log('installed lodash', require('lodash/package.json').version)"
+          find ~/.npm-proxy/cache -type f
+      - name: A deprecated package is refused
+        run: |
+          mkdir -p "$RUNNER_TEMP/deprecated" && cd "$RUNNER_TEMP/deprecated"
+          echo '{"name":"deprecated","private":true,"dependencies":{"left-pad":"1.3.0"}}' > package.json
+          if node "$GITHUB_WORKSPACE/dist/cli.js" install --no-audit --no-fund; then
+            echo "::error::install of a deprecated package succeeded"
+            exit 1
+          fi
+          echo "refused as expected"
+      - name: An insecure package is refused
+        working-directory: managers/npm
+        run: |
+          if node "$GITHUB_WORKSPACE/dist/cli.js" install --no-audit --no-fund --cache "$RUNNER_TEMP/npm-cache"; then
+            echo "::error::install of an insecure package succeeded"
+            exit 1
+          fi
+          echo "refused as expected"
