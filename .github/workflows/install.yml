@@ -1,0 +1,88 @@
+name: Install
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  npm:
+    name: npm
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/npm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm --version
+      - run: npm ci
+      - run: node -e "console.log(require('lodash/package.json').version)"
+
+  yarn:
+    name: Yarn
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/yarn
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: yarn --version
+      - run: yarn install --immutable
+      - run: node -e "console.log(require('lodash/package.json').version)"
+
+  pnpm:
+    name: pnpm
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/pnpm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm --version
+      - run: pnpm install --frozen-lockfile
+      - run: node -e "console.log(require('lodash/package.json').version)"
+
+  bun:
+    name: Bun
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/bun
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun --version
+      - run: bun install --frozen-lockfile
+      - run: bun -e "console.log(require('lodash/package.json').version)"
+
+  deno:
+    name: Deno
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: managers/deno
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno --version
+      - run: deno install --frozen
+      - run: |
+          deno eval "import pkg from 'lodash/package.json' with { type: 'json' }; console.log(pkg.version)"
